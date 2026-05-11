@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="WaniKani" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0f0f1a" />
+    <title>WaniKani</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div id="app">
+
+      <!-- ── Home ─────────────────────────────────────────────────────── -->
+      <div id="home-screen" class="screen active">
+        <header class="home-header">
+          <h1>和<span>WaniKani</span></h1>
+          <button id="refresh-btn" class="icon-btn" title="Refresh counts">↺</button>
+        </header>
+
+        <div class="summary-cards">
+          <div class="summary-card reviews">
+            <span class="count" id="reviews-count">—</span>
+            <span class="label">Reviews</span>
+          </div>
+          <div class="summary-card lessons">
+            <span class="count" id="lessons-count">—</span>
+            <span class="label">Lessons</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" id="start-reviews-btn">Start Reviews</button>
+          <button class="btn-secondary" id="start-lessons-btn">Start Lessons</button>
+        </div>
+
+        <p class="home-hint" id="home-hint"></p>
+      </div>
+
+      <!-- ── Reviews ───────────────────────────────────────────────────── -->
+      <div id="review-screen" class="screen">
+        <header class="session-header">
+          <button class="icon-btn" id="review-back-btn">✕</button>
+          <div class="progress-wrap">
+            <span id="progress-text">0 / 0</span>
+            <div class="progress-bar"><div id="progress-fill"></div></div>
+          </div>
+          <span class="type-badge" id="type-badge"></span>
+        </header>
+
+        <div id="review-card" class="card">
+          <div class="char-display" id="char-display"></div>
+
+          <!-- Meaning -->
+          <section class="quiz-section" id="meaning-section">
+            <div class="section-label">Meaning</div>
+            <div class="input-row">
+              <input
+                id="meaning-input"
+                type="text"
+                placeholder="Type meaning…"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+              <button class="submit-btn" id="meaning-submit">→</button>
+            </div>
+            <div class="result-row" id="meaning-result"></div>
+            <button class="give-up-btn hidden" id="meaning-giveup">Show answer</button>
+          </section>
+
+          <!-- Reading (hidden until meaning answered) -->
+          <section class="quiz-section hidden" id="reading-section">
+            <div class="section-label">Reading</div>
+            <div class="input-row">
+              <input
+                id="reading-input"
+                type="text"
+                placeholder="Type reading…"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+                inputmode="text"
+              />
+              <button class="submit-btn" id="reading-submit">→</button>
+            </div>
+            <div class="result-row" id="reading-result"></div>
+            <button class="give-up-btn hidden" id="reading-giveup">Show answer</button>
+          </section>
+
+          <!-- Info revealed after both answered -->
+          <div class="item-info hidden" id="item-info">
+            <div id="info-meanings"></div>
+            <div id="info-readings"></div>
+            <div id="info-reading-type"></div>
+          </div>
+
+          <button class="btn-next hidden" id="next-btn">Next →</button>
+        </div>
+      </div>
+
+      <!-- ── Lessons ────────────────────────────────────────────────────── -->
+      <div id="lesson-screen" class="screen">
+        <header class="session-header">
+          <button class="icon-btn" id="lesson-back-btn">✕</button>
+          <div class="progress-wrap">
+            <span id="lesson-progress-text">0 / 0</span>
+            <div class="progress-bar"><div id="lesson-progress-fill"></div></div>
+          </div>
+          <span class="type-badge" id="lesson-type-badge"></span>
+        </header>
+
+        <div id="lesson-card" class="card lesson-card">
+          <div class="char-display" id="lesson-char-display"></div>
+
+          <div class="lesson-info">
+            <div class="lesson-row">
+              <span class="lesson-key">Meanings</span>
+              <span id="lesson-meanings"></span>
+            </div>
+            <div class="lesson-row" id="lesson-reading-row">
+              <span class="lesson-key">Readings</span>
+              <span id="lesson-readings"></span>
+            </div>
+            <div class="lesson-row" id="lesson-mnemonic-row">
+              <span class="lesson-key">Meaning hint</span>
+              <span id="lesson-mnemonic"></span>
+            </div>
+            <div class="lesson-row" id="lesson-reading-mnemonic-row">
+              <span class="lesson-key">Reading hint</span>
+              <span id="lesson-reading-mnemonic"></span>
+            </div>
+          </div>
+
+          <button class="btn-next" id="lesson-next-btn">Got it →</button>
+        </div>
+      </div>
+
+      <!-- ── Session complete ───────────────────────────────────────────── -->
+      <div id="complete-screen" class="screen">
+        <div class="complete-wrap">
+          <div class="complete-emoji" id="complete-emoji">✓</div>
+          <h2>Session Complete</h2>
+          <p id="complete-stats"></p>
+          <button class="btn-primary" id="done-btn">Back to Home</button>
+        </div>
+      </div>
+
+    </div><!-- #app -->
+
+    <script src="https://unpkg.com/wanakana@5.3.1/umd/wanakana.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
