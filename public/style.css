@@ -13,13 +13,16 @@
   --text:        #eeeef8;
   --muted:       #7777aa;
   --radius:      14px;
-  --safe-top:    env(safe-area-inset-top, 0px);
+  --header-h:    60px;   /* session header height — updated via JS if needed */
+  --safe-top:    env(safe-area-inset-top,    0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 html, body {
   height: 100%;
+  /* Prevent body from scrolling — all scrolling happens inside #review-body */
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -27,22 +30,39 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
-#app { height: 100dvh; position: relative; }
+/*
+ * #app is fixed to the visual viewport.
+ * JS updates --real-vh whenever visualViewport.resize fires
+ * (covers the iPhone keyboard-appears case).
+ */
+#app {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: calc(var(--real-vh, 1vh) * 100);
+  overflow: hidden;
+}
 
 /* ── Screens ─────────────────────────────────────────────────────────────── */
 .screen {
+  position: absolute;
+  inset: 0;
   display: none;
   flex-direction: column;
-  height: 100dvh;
+  overflow: hidden;
 }
 .screen.active { display: flex; }
 
 /* ── Home screen ─────────────────────────────────────────────────────────── */
-#home-screen {
+#home-screen { justify-content: center; align-items: center; }
+
+.home-inner {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 36px;
-  padding: calc(var(--safe-top) + 40px) 24px calc(var(--safe-bottom) + 40px);
+  gap: 32px;
+  width: 100%;
+  max-width: 400px;
+  padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 24px);
 }
 
 .home-header {
@@ -50,7 +70,6 @@ html, body {
   align-items: center;
   gap: 12px;
 }
-
 .home-header h1 {
   font-size: 2rem;
   font-weight: 800;
@@ -59,7 +78,6 @@ html, body {
   align-items: baseline;
   gap: 8px;
 }
-
 .home-header h1 span {
   font-size: 1.1rem;
   font-weight: 500;
@@ -72,44 +90,33 @@ html, body {
   color: var(--muted);
   font-size: 1.4rem;
   cursor: pointer;
-  padding: 6px;
+  padding: 6px 8px;
   border-radius: 8px;
   line-height: 1;
   transition: color 0.15s;
 }
 .icon-btn:active { color: var(--text); }
 
-.summary-cards {
-  display: flex;
-  gap: 16px;
+/* Single reviews count card */
+.review-count-card {
   width: 100%;
-  max-width: 380px;
-}
-
-.summary-card {
-  flex: 1;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 24px 16px;
+  padding: 28px 20px;
   text-align: center;
-  border: 2px solid transparent;
+  border: 2px solid var(--kanji);
 }
-.summary-card.reviews { border-color: var(--kanji); }
-.summary-card.lessons { border-color: var(--vocab); }
-
-.summary-card .count {
+.review-count-card .count {
   display: block;
-  font-size: 3.2rem;
+  font-size: 4rem;
   font-weight: 700;
+  color: var(--kanji);
   line-height: 1;
 }
-.summary-card.reviews .count { color: var(--kanji); }
-.summary-card.lessons .count { color: var(--vocab); }
-
-.summary-card .label {
+.review-count-card .label {
   display: block;
   margin-top: 8px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -120,7 +127,6 @@ html, body {
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-width: 380px;
 }
 
 .btn-primary {
@@ -135,8 +141,8 @@ html, body {
   cursor: pointer;
   transition: opacity 0.12s;
 }
-.btn-primary:active { opacity: 0.75; }
-.btn-primary:disabled { opacity: 0.45; cursor: default; }
+.btn-primary:active  { opacity: 0.75; }
+.btn-primary:disabled { opacity: 0.4; cursor: default; }
 
 .btn-secondary {
   width: 100%;
@@ -150,8 +156,8 @@ html, body {
   cursor: pointer;
   transition: opacity 0.12s;
 }
-.btn-secondary:active { opacity: 0.75; }
-.btn-secondary:disabled { opacity: 0.45; cursor: default; }
+.btn-secondary:active  { opacity: 0.75; }
+.btn-secondary:disabled { opacity: 0.4; cursor: default; }
 
 .home-hint {
   font-size: 0.82rem;
@@ -160,14 +166,18 @@ html, body {
   min-height: 1.2em;
 }
 
-/* ── Session header ──────────────────────────────────────────────────────── */
+/* ── Session header (fixed height, never moves) ──────────────────────────── */
 .session-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(var(--safe-top) + 14px) 16px 14px;
+  height: var(--header-h);
+  padding: 0 16px;
+  padding-top: var(--safe-top);
   background: var(--surface);
-  flex-shrink: 0;
+  /* keep header height consistent even with safe-area */
+  box-sizing: content-box;
 }
 
 .progress-wrap {
@@ -176,77 +186,70 @@ html, body {
   flex-direction: column;
   gap: 6px;
 }
-
 #progress-text, #lesson-progress-text {
   font-size: 0.75rem;
   color: var(--muted);
 }
-
 .progress-bar {
   height: 4px;
   background: var(--surface2);
   border-radius: 2px;
   overflow: hidden;
 }
-
 #progress-fill, #lesson-progress-fill {
   height: 100%;
   background: var(--correct);
   border-radius: 2px;
   width: 0%;
-  transition: width 0.4s ease;
+  transition: width 0.35s ease;
 }
 
 .type-badge {
-  padding: 4px 11px;
+  padding: 4px 12px;
   border-radius: 99px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: white;
   flex-shrink: 0;
 }
-.type-badge.radical        { background: var(--radical); }
-.type-badge.kanji          { background: var(--kanji); }
+.type-badge.radical         { background: var(--radical); }
+.type-badge.kanji           { background: var(--kanji); }
 .type-badge.vocabulary,
 .type-badge.kana_vocabulary { background: var(--vocab); }
 
-/* ── Card ────────────────────────────────────────────────────────────────── */
-.card {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 20px calc(var(--safe-bottom) + 20px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* ── Character display ───────────────────────────────────────────────────── */
+/* ── Character display (never scrolls — sits between header and body) ────── */
 .char-display {
-  font-size: clamp(5rem, 18vw, 7rem);
-  line-height: 1.15;
+  flex-shrink: 0;
+  font-size: clamp(4rem, 16vw, 6.5rem);
   text-align: center;
-  padding: 12px;
-  min-height: 110px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 14px 16px 10px;
+  line-height: 1.2;
 }
-.char-display.radical        { color: var(--radical); }
-.char-display.kanji          { color: var(--kanji); }
+.char-display.radical         { color: var(--radical); }
+.char-display.kanji           { color: var(--kanji); }
 .char-display.vocabulary,
 .char-display.kana_vocabulary { color: var(--vocab); }
 
-/* ── Quiz sections ───────────────────────────────────────────────────────── */
+/* ── Review body (scrollable; fits remaining space) ──────────────────────── */
+#review-body, #lesson-body {
+  flex: 1;
+  min-height: 0;           /* critical: lets flex child shrink + scroll */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px calc(var(--safe-bottom) + 20px);
+}
+
+/* ── Quiz section ────────────────────────────────────────────────────────── */
 .quiz-section {
-  width: 100%;
-  max-width: 500px;
+  flex-shrink: 0;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: 16px;
   border: 2px solid transparent;
   transition: border-color 0.18s;
 }
@@ -259,28 +262,25 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.input-row {
-  display: flex;
-  gap: 8px;
-}
+.input-row { display: flex; gap: 8px; }
 
 .input-row input {
   flex: 1;
+  min-width: 0;
   background: var(--bg);
   border: 2px solid var(--surface2);
   border-radius: 10px;
   padding: 13px 14px;
   color: var(--text);
-  font-size: 1rem;
+  font-size: 1.05rem;
   outline: none;
-  min-width: 0;
   transition: border-color 0.15s;
 }
-.input-row input:focus      { border-color: var(--kanji); }
-.input-row input:disabled   { opacity: 0.55; }
+.input-row input:focus    { border-color: var(--kanji); }
+.input-row input:disabled { opacity: 0.55; }
 
 .submit-btn {
   background: var(--kanji);
@@ -298,7 +298,7 @@ html, body {
 
 .result-row {
   min-height: 22px;
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -306,36 +306,61 @@ html, body {
 .result-row.incorrect { color: var(--incorrect); }
 
 .give-up-btn {
-  margin-top: 10px;
+  margin-top: 8px;
   background: none;
   border: none;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
 }
 .give-up-btn:active { color: var(--text); }
 
-/* ── Item info (shown after answer) ─────────────────────────────────────── */
+/* ── Item info panel ─────────────────────────────────────────────────────── */
 .item-info {
-  width: 100%;
-  max-width: 500px;
+  flex-shrink: 0;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 0.88rem;
+  gap: 0;
 }
-.item-info div { color: var(--muted); }
-.item-info strong { color: var(--text); margin-right: 6px; }
+
+.info-row {
+  font-size: 0.88rem;
+  color: var(--muted);
+  padding: 4px 0;
+  line-height: 1.5;
+}
+.info-row strong { color: var(--text); margin-right: 6px; }
+
+/* Reveal toggles */
+.reveal-btn {
+  background: none;
+  border: none;
+  border-top: 1px solid var(--surface2);
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 10px 0 6px;
+  text-align: left;
+  transition: color 0.12s;
+  width: 100%;
+}
+.reveal-btn:first-child { border-top: none; }
+.reveal-btn:active { color: var(--text); }
+.reveal-btn.open { color: var(--text); }
+
+.reveal-content {
+  padding-bottom: 6px;
+}
 
 /* ── Next button ─────────────────────────────────────────────────────────── */
 .btn-next {
+  flex-shrink: 0;
   width: 100%;
-  max-width: 500px;
   padding: 18px;
   background: var(--correct);
   color: white;
@@ -348,26 +373,17 @@ html, body {
 }
 .btn-next:active { opacity: 0.75; }
 
-/* ── Lesson card ─────────────────────────────────────────────────────────── */
-.lesson-card { gap: 20px; }
-
+/* ── Lessons ─────────────────────────────────────────────────────────────── */
 .lesson-info {
-  width: 100%;
-  max-width: 500px;
+  flex-shrink: 0;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 18px 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-
-.lesson-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
+.lesson-row { display: flex; flex-direction: column; gap: 4px; }
 .lesson-key {
   font-size: 0.68rem;
   font-weight: 700;
@@ -375,7 +391,6 @@ html, body {
   letter-spacing: 0.12em;
   color: var(--muted);
 }
-
 .lesson-row span:last-child {
   font-size: 0.95rem;
   color: var(--text);
@@ -383,41 +398,26 @@ html, body {
 }
 
 /* ── Complete screen ─────────────────────────────────────────────────────── */
-#complete-screen {
-  align-items: center;
-  justify-content: center;
-}
-
+#complete-screen { justify-content: center; align-items: center; }
 .complete-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 40px 24px calc(var(--safe-bottom) + 40px);
+  padding: 40px 24px;
   text-align: center;
-  max-width: 380px;
 }
-
-.complete-emoji {
-  font-size: 4rem;
-  color: var(--correct);
-  font-weight: 700;
-}
-
+.complete-emoji { font-size: 4rem; color: var(--correct); font-weight: 700; }
 .complete-wrap h2 { font-size: 1.8rem; font-weight: 700; }
-.complete-wrap p  { color: var(--muted); font-size: 1rem; }
+.complete-wrap p  { color: var(--muted); }
 
 /* ── Utility ─────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 
-/* Subtle fade-in for revealed sections (opacity only — no layout shift) */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .fade-in { animation: fadeIn 0.2s ease; }
 
-/* Respect system reduced-motion preference */
+/* Kill all motion if the user has asked for it */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

@@ -1,5 +1,20 @@
 'use strict';
 
+// ── Viewport height fix (iPhone keyboard pushes layout) ───────────────────────
+// We track the visual viewport height and update a CSS variable.
+// The entire #app is sized to this variable, so the keyboard never
+// pushes the header or character off screen.
+function updateVh() {
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--real-vh', (h * 0.01) + 'px');
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateVh);
+  window.visualViewport.addEventListener('scroll', updateVh);
+}
+window.addEventListener('resize', updateVh);
+updateVh();
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 
@@ -28,13 +43,28 @@ function stripTags(html) {
   return (html || '').replace(/<[^>]+>/g, '');
 }
 
-function typeLabel(object) {
-  if (object === 'kana_vocabulary') return 'Vocab';
-  return object.charAt(0).toUpperCase() + object.slice(1);
+function typeLabel(obj) {
+  if (obj === 'kana_vocabulary') return 'Vocab';
+  return obj.charAt(0).toUpperCase() + obj.slice(1);
 }
 
 function needsReading(subject) {
   return subject.object !== 'radical' && subject.object !== 'kana_vocabulary';
+}
+
+// ── WanaKana — bind/unbind per card ──────────────────────────────────────────
+// We call unbind before every bind to avoid double-binding.
+// Do NOT use wanakana.isBound() — it is not reliable across versions.
+function bindWanakana() {
+  if (!window.wanakana) return;
+  const el = $('answer-input');
+  try { wanakana.unbind(el); } catch (_) {}
+  wanakana.bind(el, { IMEMode: true });
+}
+
+function unbindWanakana() {
+  if (!window.wanakana) return;
+  try { wanakana.unbind($('answer-input')); } catch (_) {}
 }
 
 // ── Answer checking ───────────────────────────────────────────────────────────
@@ -65,28 +95,14 @@ function checkReading(input, subject) {
     .includes(user);
 }
 
-// ── WanaKana (romaji → hiragana on reading cards) ─────────────────────────────
-function bindWanakana() {
-  if (!window.wanakana) return;
-  const el = $('answer-input');
-  if (!wanakana.isBound(el)) wanakana.bind(el, { IMEMode: true });
-}
-
-function unbindWanakana() {
-  if (!window.wanakana) return;
-  const el = $('answer-input');
-  if (wanakana.isBound(el)) wanakana.unbind(el);
-}
-
 // ── Review session state ──────────────────────────────────────────────────────
-let reviewQueue  = [];   // [{assignment, subject, promptType: 'meaning'|'reading'}]
-let reviewIndex  = 0;
-let sessionCards = 0;    // total cards answered this session
+let reviewQueue = [];
+let reviewIndex = 0;
+let sessionCards = 0;
 let sessionCorrect = 0;
 
-// Per-assignment tracking: assignmentId → {wrongMeaning, wrongReading, meaningDone, readingDone}
+// Per-assignment SRS tracking
 const progress = new Map();
-
 function getProgress(id) {
   if (!progress.has(id)) {
     progress.set(id, { wrongMeaning: 0, wrongReading: 0, meaningDone: false, readingDone: false });
@@ -98,7 +114,6 @@ function getProgress(id) {
 let wrongThisCard = 0;
 let answeredCorrectly = false;
 
-// ── Build queue ───────────────────────────────────────────────────────────────
 function buildQueue(items) {
   const cards = [];
   for (const { assignment, subject } of items) {
@@ -115,14 +130,13 @@ function buildQueue(items) {
 function renderReviewCard() {
   const { subject, promptType } = reviewQueue[reviewIndex];
   const type = subject.object;
+  const isReading = promptType === 'reading';
 
-  // Progress bar
-  const done = reviewIndex;
-  const total = reviewQueue.length;
-  $('progress-text').textContent = `${done} / ${total}`;
-  $('progress-fill').style.width = `${(done / total) * 100}%`;
+  // Progress
+  $('progress-text').textContent = `${reviewIndex} / ${reviewQueue.length}`;
+  $('progress-fill').style.width = `${(reviewIndex / reviewQueue.length) * 100}%`;
 
-  // Type badge + character
+  // Badge + character
   const badge = $('type-badge');
   badge.textContent = typeLabel(type);
   badge.className = `type-badge ${type}`;
@@ -131,8 +145,7 @@ function renderReviewCard() {
   charEl.textContent = subject.data.characters || subject.data.slug;
   charEl.className = `char-display ${type}`;
 
-  // Prompt label + placeholder
-  const isReading = promptType === 'reading';
+  // Prompt
   $('section-label').textContent = isReading ? 'Reading' : 'Meaning';
   $('answer-input').placeholder = isReading ? 'Type reading…' : 'Type meaning…';
 
@@ -143,80 +156,127 @@ function renderReviewCard() {
     unbindWanakana();
   }
 
-  // Reset card state
+  // Reset card
   wrongThisCard = 0;
   answeredCorrectly = false;
 
-  const section = $('quiz-section');
-  section.className = 'quiz-section';
+  $('quiz-section').className = 'quiz-section';
   $('answer-input').value = '';
   $('answer-input').disabled = false;
   $('answer-submit').disabled = false;
   $('answer-result').textContent = '';
   $('answer-result').className = 'result-row';
   $('answer-giveup').classList.add('hidden');
+
+  // Hide info + next
   $('item-info').classList.add('hidden');
   $('next-btn').classList.add('hidden');
 
-  setTimeout(() => $('answer-input').focus(), 60);
+  // Collapse any open reveals
+  collapseReveal('reading');
+  collapseReveal('explanation');
+
+  // Scroll review body back to top
+  const body = $('review-body');
+  if (body) body.scrollTop = 0;
+
+  setTimeout(() => $('answer-input').focus(), 80);
 }
 
-// ── Reveal full item info after answering ─────────────────────────────────────
-function revealInfo() {
-  const { subject } = reviewQueue[reviewIndex];
+// ── Reveal toggle helpers ─────────────────────────────────────────────────────
+function collapseReveal(name) {
+  const btn = $(`${name}-reveal-btn`);
+  const content = $(`${name}-reveal`);
+  if (!btn || !content) return;
+  content.classList.add('hidden');
+  btn.classList.remove('open');
+  btn.textContent = `Show ${name} ▾`;
+}
 
+function toggleReveal(name) {
+  const btn = $(`${name}-reveal-btn`);
+  const content = $(`${name}-reveal`);
+  const isOpen = !content.classList.contains('hidden');
+  if (isOpen) {
+    content.classList.add('hidden');
+    btn.classList.remove('open');
+    btn.textContent = `Show ${name} ▾`;
+  } else {
+    content.classList.remove('hidden');
+    btn.classList.add('open');
+    btn.textContent = `Hide ${name} ▴`;
+  }
+}
+
+// ── Reveal info panel after answering ────────────────────────────────────────
+function revealInfo() {
+  const { subject, promptType } = reviewQueue[reviewIndex];
+  const isReading = promptType === 'reading';
+
+  // Meanings row (always visible)
   const meanings = subject.data.meanings
     .filter((m) => m.accepted_answer)
     .map((m) => m.meaning)
     .join(', ');
   $('info-meanings').innerHTML = `<strong>Meanings:</strong> ${meanings}`;
 
+  // Readings (inside reveal)
   if (needsReading(subject) && subject.data.readings?.length) {
     const readings = subject.data.readings
       .filter((r) => r.accepted_answer)
       .map((r) => r.reading)
       .join('、 ');
     $('info-readings').innerHTML = `<strong>Readings:</strong> ${readings}`;
-    $('info-readings').classList.remove('hidden');
 
     if (subject.object === 'kanji') {
       const primary = subject.data.readings.find((r) => r.primary);
-      if (primary) {
-        $('info-pos').innerHTML = `<strong>Type:</strong> ${primary.type}`;
-        $('info-pos').classList.remove('hidden');
-      } else {
-        $('info-pos').classList.add('hidden');
-      }
+      $('info-pos').innerHTML = primary
+        ? `<strong>Type:</strong> ${primary.type}`
+        : '';
     } else {
-      $('info-pos').classList.add('hidden');
+      $('info-pos').textContent = '';
     }
+    $('reading-reveal-btn').classList.remove('hidden');
   } else {
-    $('info-readings').classList.add('hidden');
-    $('info-pos').classList.add('hidden');
+    $('reading-reveal-btn').classList.add('hidden');
+  }
+
+  // Mnemonics (inside explanation reveal)
+  const mm = stripTags(subject.data.meaning_mnemonic || '');
+  const rm = needsReading(subject) ? stripTags(subject.data.reading_mnemonic || '') : '';
+  $('info-meaning-mnemonic').innerHTML = mm ? `<strong>Meaning:</strong> ${mm}` : '';
+  $('info-reading-mnemonic').innerHTML = rm ? `<strong>Reading:</strong> ${rm}` : '';
+
+  if (mm || rm) {
+    $('explanation-reveal-btn').classList.remove('hidden');
+  } else {
+    $('explanation-reveal-btn').classList.add('hidden');
+  }
+
+  // If this is a reading card, auto-open the reading reveal so they
+  // can verify what they just answered without an extra tap
+  if (isReading && needsReading(subject)) {
+    $('reading-reveal').classList.remove('hidden');
+    $('reading-reveal-btn').classList.add('open');
+    $('reading-reveal-btn').textContent = 'Hide reading ▴';
   }
 
   const info = $('item-info');
   info.classList.remove('hidden');
   info.classList.add('fade-in');
-  setTimeout(() => info.classList.remove('fade-in'), 300);
+  setTimeout(() => info.classList.remove('fade-in'), 250);
 
   const nextBtn = $('next-btn');
   nextBtn.classList.remove('hidden');
   nextBtn.classList.add('fade-in');
-  setTimeout(() => nextBtn.classList.remove('fade-in'), 300);
+  setTimeout(() => nextBtn.classList.remove('fade-in'), 250);
 }
 
-// ── Try to submit the review for an assignment (when both parts done) ──────────
-async function maybeSubmitReview(assignmentId) {
+// ── Submit review to WaniKani when both parts done ────────────────────────────
+async function maybeSubmitReview(assignmentId, subject) {
   const p = getProgress(assignmentId);
-  const { subject } = reviewQueue[reviewIndex];
-
-  const bothDone = needsReading(subject)
-    ? p.meaningDone && p.readingDone
-    : p.meaningDone;
-
+  const bothDone = needsReading(subject) ? (p.meaningDone && p.readingDone) : p.meaningDone;
   if (!bothDone) return;
-
   try {
     await api('/api/reviews', {
       method: 'POST',
@@ -231,34 +291,25 @@ async function maybeSubmitReview(assignmentId) {
   }
 }
 
-// ── Submit answer ─────────────────────────────────────────────────────────────
+// ── Answer submit ─────────────────────────────────────────────────────────────
 function submitAnswer() {
   if (answeredCorrectly) return;
   const val = $('answer-input').value.trim();
   if (!val) return;
 
   const { assignment, subject, promptType } = reviewQueue[reviewIndex];
-  const p = getProgress(assignment.id);
   const isReading = promptType === 'reading';
-
-  const correct = isReading
-    ? checkReading(val, subject)
-    : checkMeaning(val, subject);
+  const p = getProgress(assignment.id);
+  const correct = isReading ? checkReading(val, subject) : checkMeaning(val, subject);
 
   if (correct) {
     answeredCorrectly = true;
     sessionCards++;
     sessionCorrect++;
 
-    // Record in progress
-    if (isReading) {
-      p.wrongReading += wrongThisCard;
-      p.readingDone = true;
-    } else {
-      p.wrongMeaning += wrongThisCard;
-      p.meaningDone = true;
-    }
-    maybeSubmitReview(assignment.id);
+    if (isReading) { p.wrongReading += wrongThisCard; p.readingDone = true; }
+    else           { p.wrongMeaning += wrongThisCard; p.meaningDone = true; }
+    maybeSubmitReview(assignment.id, subject);
 
     $('quiz-section').classList.add('correct');
     $('answer-result').textContent = '✓ Correct';
@@ -267,6 +318,7 @@ function submitAnswer() {
     $('answer-submit').disabled = true;
     $('answer-giveup').classList.add('hidden');
     revealInfo();
+
   } else {
     wrongThisCard++;
     $('quiz-section').classList.add('incorrect');
@@ -275,7 +327,6 @@ function submitAnswer() {
     $('answer-input').value = '';
     $('answer-input').focus();
     setTimeout(() => $('quiz-section').classList.remove('incorrect'), 650);
-
     if (wrongThisCard >= 1) $('answer-giveup').classList.remove('hidden');
   }
 }
@@ -284,25 +335,20 @@ function submitAnswer() {
 function giveUp() {
   if (answeredCorrectly) return;
   const { assignment, subject, promptType } = reviewQueue[reviewIndex];
-  const p = getProgress(assignment.id);
   const isReading = promptType === 'reading';
+  const p = getProgress(assignment.id);
 
   wrongThisCard++;
   answeredCorrectly = true;
   sessionCards++;
 
-  // Show the correct answer
-  let answer;
-  if (isReading) {
-    answer = subject.data.readings.find((r) => r.primary)?.reading || '—';
-    p.wrongReading += wrongThisCard;
-    p.readingDone = true;
-  } else {
-    answer = subject.data.meanings.find((m) => m.primary)?.meaning || '—';
-    p.wrongMeaning += wrongThisCard;
-    p.meaningDone = true;
-  }
-  maybeSubmitReview(assignment.id);
+  const answer = isReading
+    ? (subject.data.readings?.find((r) => r.primary)?.reading || '—')
+    : (subject.data.meanings?.find((m) => m.primary)?.meaning || '—');
+
+  if (isReading) { p.wrongReading += wrongThisCard; p.readingDone = true; }
+  else           { p.wrongMeaning += wrongThisCard; p.meaningDone = true; }
+  maybeSubmitReview(assignment.id, subject);
 
   $('quiz-section').classList.add('incorrect');
   $('answer-result').textContent = `Answer: ${answer}`;
@@ -313,19 +359,15 @@ function giveUp() {
   revealInfo();
 }
 
-// ── Advance to next card ──────────────────────────────────────────────────────
+// ── Next card ─────────────────────────────────────────────────────────────────
 function nextReviewCard() {
   reviewIndex++;
   $('progress-fill').style.width = `${(reviewIndex / reviewQueue.length) * 100}%`;
-
-  if (reviewIndex >= reviewQueue.length) {
-    showComplete('review');
-    return;
-  }
+  if (reviewIndex >= reviewQueue.length) { showComplete('review'); return; }
   renderReviewCard();
 }
 
-// ── Load and start reviews ────────────────────────────────────────────────────
+// ── Start reviews ─────────────────────────────────────────────────────────────
 async function startReviews() {
   const btn = $('start-reviews-btn');
   btn.disabled = true;
@@ -334,26 +376,19 @@ async function startReviews() {
 
   try {
     const data = await api('/api/queue');
-
     if (!data.items.length) {
       $('home-hint').textContent = 'No reviews available right now!';
-      btn.disabled = false;
-      btn.textContent = 'Start Reviews';
+      btn.disabled = false; btn.textContent = 'Start Reviews';
       return;
     }
-
     reviewQueue = buildQueue(data.items);
-    reviewIndex = 0;
-    sessionCards = 0;
-    sessionCorrect = 0;
+    reviewIndex = 0; sessionCards = 0; sessionCorrect = 0;
     progress.clear();
-
     showScreen('review-screen');
     renderReviewCard();
   } catch (e) {
     $('home-hint').textContent = 'Failed to load reviews. Check your connection.';
-    btn.disabled = false;
-    btn.textContent = 'Start Reviews';
+    btn.disabled = false; btn.textContent = 'Start Reviews';
   }
 }
 
@@ -376,19 +411,13 @@ function renderLessonCard() {
   charEl.textContent = subject.data.characters || subject.data.slug;
   charEl.className = `char-display ${type}`;
 
-  const meanings = subject.data.meanings
-    .filter((m) => m.accepted_answer)
-    .map((m) => m.meaning)
-    .join(', ');
-  $('lesson-meanings').textContent = meanings;
+  $('lesson-meanings').textContent = subject.data.meanings
+    .filter((m) => m.accepted_answer).map((m) => m.meaning).join(', ');
 
   const readingRow = $('lesson-reading-row');
   if (needsReading(subject) && subject.data.readings?.length) {
-    const readings = subject.data.readings
-      .filter((r) => r.accepted_answer)
-      .map((r) => r.reading)
-      .join('、 ');
-    $('lesson-readings').textContent = readings;
+    $('lesson-readings').textContent = subject.data.readings
+      .filter((r) => r.accepted_answer).map((r) => r.reading).join('、 ');
     readingRow.classList.remove('hidden');
   } else {
     readingRow.classList.add('hidden');
@@ -398,63 +427,49 @@ function renderLessonCard() {
   if (mm) {
     $('lesson-mnemonic').textContent = stripTags(mm);
     $('lesson-mnemonic-row').classList.remove('hidden');
-  } else {
-    $('lesson-mnemonic-row').classList.add('hidden');
-  }
+  } else { $('lesson-mnemonic-row').classList.add('hidden'); }
 
   const rm = subject.data.reading_mnemonic;
   if (rm && needsReading(subject)) {
     $('lesson-reading-mnemonic').textContent = stripTags(rm);
     $('lesson-reading-mnemonic-row').classList.remove('hidden');
-  } else {
-    $('lesson-reading-mnemonic-row').classList.add('hidden');
-  }
+  } else { $('lesson-reading-mnemonic-row').classList.add('hidden'); }
+
+  $('lesson-body').scrollTop = 0;
 }
 
 async function nextLessonCard() {
   const { assignment } = lessonQueue[lessonIndex];
   try {
     await api(`/api/assignments/${assignment.id}/start`, { method: 'PUT' });
-  } catch (e) {
-    console.warn('Lesson start failed:', e.message);
-  }
+  } catch (e) { console.warn('Lesson start failed:', e.message); }
 
   lessonIndex++;
-  if (lessonIndex >= lessonQueue.length) {
-    showComplete('lesson');
-    return;
-  }
+  if (lessonIndex >= lessonQueue.length) { showComplete('lesson'); return; }
   renderLessonCard();
 }
 
 async function startLessons() {
   const btn = $('start-lessons-btn');
-  btn.disabled = true;
-  btn.textContent = 'Loading…';
+  btn.disabled = true; btn.textContent = 'Loading…';
   $('home-hint').textContent = '';
-
   try {
     const data = await api('/api/lessons');
-
     if (!data.items.length) {
       $('home-hint').textContent = 'No lessons available right now!';
-      btn.disabled = false;
-      btn.textContent = 'Start Lessons';
+      btn.disabled = false; btn.textContent = 'Start Lessons';
       return;
     }
-
-    lessonQueue = data.items;
-    lessonIndex = 0;
+    lessonQueue = data.items; lessonIndex = 0;
     showScreen('lesson-screen');
     renderLessonCard();
   } catch (e) {
     $('home-hint').textContent = 'Failed to load lessons.';
-    btn.disabled = false;
-    btn.textContent = 'Start Lessons';
+    btn.disabled = false; btn.textContent = 'Start Lessons';
   }
 }
 
-// ── Complete screen ───────────────────────────────────────────────────────────
+// ── Complete ──────────────────────────────────────────────────────────────────
 function showComplete(mode) {
   if (mode === 'review') {
     const pct = sessionCards ? Math.round((sessionCorrect / sessionCards) * 100) : 0;
@@ -467,27 +482,22 @@ function showComplete(mode) {
   showScreen('complete-screen');
 }
 
-// ── Home ──────────────────────────────────────────────────────────────────────
+// ── Home summary ──────────────────────────────────────────────────────────────
 async function loadSummary() {
   try {
     const data = await api('/api/summary');
     const reviews = data.data?.reviews?.[0]?.subject_ids?.length ?? 0;
-    const lessons = data.data?.lessons?.[0]?.subject_ids?.length ?? 0;
     $('reviews-count').textContent = reviews;
-    $('lessons-count').textContent = lessons;
   } catch {
     $('reviews-count').textContent = '?';
-    $('lessons-count').textContent = '?';
   }
 }
 
 function returnHome() {
   unbindWanakana();
   loadSummary();
-  $('start-reviews-btn').disabled = false;
-  $('start-reviews-btn').textContent = 'Start Reviews';
-  $('start-lessons-btn').disabled = false;
-  $('start-lessons-btn').textContent = 'Start Lessons';
+  $('start-reviews-btn').disabled = false; $('start-reviews-btn').textContent = 'Start Reviews';
+  $('start-lessons-btn').disabled = false; $('start-lessons-btn').textContent = 'Start Lessons';
   $('home-hint').textContent = '';
   showScreen('home-screen');
 }
@@ -509,10 +519,12 @@ document.addEventListener('DOMContentLoaded', () => {
   $('answer-submit').addEventListener('click', submitAnswer);
   $('answer-giveup').addEventListener('click', giveUp);
   $('next-btn').addEventListener('click', nextReviewCard);
-
   $('answer-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
   });
+
+  $('reading-reveal-btn').addEventListener('click', () => toggleReveal('reading'));
+  $('explanation-reveal-btn').addEventListener('click', () => toggleReveal('explanation'));
 
   $('lesson-back-btn').addEventListener('click', returnHome);
   $('lesson-next-btn').addEventListener('click', nextLessonCard);

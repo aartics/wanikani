@@ -18,32 +18,29 @@
 
       <!-- ── Home ─────────────────────────────────────────────────────── -->
       <div id="home-screen" class="screen active">
-        <header class="home-header">
-          <h1>和<span>WaniKani</span></h1>
-          <button id="refresh-btn" class="icon-btn" title="Refresh">↺</button>
-        </header>
+        <div class="home-inner">
+          <header class="home-header">
+            <h1>和<span>WaniKani</span></h1>
+            <button id="refresh-btn" class="icon-btn" title="Refresh">↺</button>
+          </header>
 
-        <div class="summary-cards">
-          <div class="summary-card reviews">
+          <div class="review-count-card">
             <span class="count" id="reviews-count">—</span>
-            <span class="label">Reviews</span>
+            <span class="label">Reviews available</span>
           </div>
-          <div class="summary-card lessons">
-            <span class="count" id="lessons-count">—</span>
-            <span class="label">Lessons</span>
+
+          <div class="actions">
+            <button class="btn-primary" id="start-reviews-btn">Start Reviews</button>
+            <button class="btn-secondary" id="start-lessons-btn">Start Lessons</button>
           </div>
-        </div>
 
-        <div class="actions">
-          <button class="btn-primary" id="start-reviews-btn">Start Reviews</button>
-          <button class="btn-secondary" id="start-lessons-btn">Start Lessons</button>
+          <p class="home-hint" id="home-hint"></p>
         </div>
-
-        <p class="home-hint" id="home-hint"></p>
       </div>
 
       <!-- ── Reviews ───────────────────────────────────────────────────── -->
       <div id="review-screen" class="screen">
+
         <header class="session-header">
           <button class="icon-btn" id="review-back-btn">✕</button>
           <div class="progress-wrap">
@@ -53,10 +50,12 @@
           <span class="type-badge" id="type-badge"></span>
         </header>
 
-        <div id="review-card" class="card">
-          <div class="char-display" id="char-display"></div>
+        <!-- char is outside the scroll area so it never moves -->
+        <div class="char-display" id="char-display"></div>
 
-          <!-- Single prompt — switches between meaning and reading -->
+        <!-- quiz + info scroll together if needed, but char stays above -->
+        <div id="review-body">
+
           <section class="quiz-section" id="quiz-section">
             <div class="section-label" id="section-label">Meaning</div>
             <div class="input-row">
@@ -74,19 +73,36 @@
             <button class="give-up-btn hidden" id="answer-giveup">Show answer</button>
           </section>
 
-          <!-- Full info — revealed after answering -->
+          <!-- Info panel — revealed after answering -->
           <div class="item-info hidden" id="item-info">
-            <div id="info-meanings"></div>
-            <div id="info-readings"></div>
-            <div id="info-pos"></div>
+
+            <!-- Meanings: always visible -->
+            <div class="info-row" id="info-meanings"></div>
+
+            <!-- Reading: hidden until tapped -->
+            <button class="reveal-btn" id="reading-reveal-btn">Show reading ▾</button>
+            <div class="reveal-content hidden" id="reading-reveal">
+              <div class="info-row" id="info-readings"></div>
+              <div class="info-row" id="info-pos"></div>
+            </div>
+
+            <!-- Explanation: hidden until tapped -->
+            <button class="reveal-btn" id="explanation-reveal-btn">Show explanation ▾</button>
+            <div class="reveal-content hidden" id="explanation-reveal">
+              <div class="info-row" id="info-meaning-mnemonic"></div>
+              <div class="info-row" id="info-reading-mnemonic"></div>
+            </div>
+
           </div>
 
           <button class="btn-next hidden" id="next-btn">Next →</button>
-        </div>
+
+        </div><!-- #review-body -->
       </div>
 
       <!-- ── Lessons ────────────────────────────────────────────────────── -->
       <div id="lesson-screen" class="screen">
+
         <header class="session-header">
           <button class="icon-btn" id="lesson-back-btn">✕</button>
           <div class="progress-wrap">
@@ -96,9 +112,9 @@
           <span class="type-badge" id="lesson-type-badge"></span>
         </header>
 
-        <div id="lesson-card" class="card lesson-card">
-          <div class="char-display" id="lesson-char-display"></div>
+        <div class="char-display" id="lesson-char-display"></div>
 
+        <div id="lesson-body">
           <div class="lesson-info">
             <div class="lesson-row">
               <span class="lesson-key">Meanings</span>
@@ -117,12 +133,12 @@
               <span id="lesson-reading-mnemonic"></span>
             </div>
           </div>
-
           <button class="btn-next" id="lesson-next-btn">Got it →</button>
         </div>
+
       </div>
 
-      <!-- ── Session complete ───────────────────────────────────────────── -->
+      <!-- ── Complete ───────────────────────────────────────────────────── -->
       <div id="complete-screen" class="screen">
         <div class="complete-wrap">
           <div class="complete-emoji" id="complete-emoji">✓</div>
@@ -132,7 +148,7 @@
         </div>
       </div>
 
-    </div>
+    </div><!-- #app -->
 
     <script src="https://unpkg.com/wanakana@5.3.1/umd/wanakana.min.js"></script>
     <script src="/app.js"></script>
