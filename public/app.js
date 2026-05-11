@@ -1,23 +1,50 @@
 'use strict';
 
-// ── Viewport lock — prevents iOS keyboard from shifting the layout ────────────
-// iOS Safari (even in standalone PWA mode) scrolls the layout viewport
-// when an input is focused, making fixed elements appear to jump.
-// Fix: on every visualViewport scroll/resize, we:
-//   1. Resize #app to match the visual viewport height (shrinks when keyboard opens)
-//   2. translateY by offsetTop to cancel any scroll iOS applied
-// This keeps the app visually anchored to the top of the screen at all times.
+// ── Viewport lock — stops iOS keyboard from shifting the layout ───────────────
+//
+// Root cause (WebKit bug 153852): iOS Safari scrolls the layout viewport when
+// an input is focused, even with overflow:hidden on body. position:fixed
+// elements appear to jump because they're anchored to the layout viewport.
+//
+// Two-layer defence:
+//
+// Layer 1 — PREVENT (touchstart trick):
+//   Move the input to translateY(-8000px) before iOS computes how much to
+//   scroll. Safari sees the element off-screen and concludes 0 scroll is
+//   needed. We restore the element in the next rAF, before the user notices.
+//
+// Layer 2 — COMPENSATE (visualViewport):
+//   If iOS scrolled anyway, visualViewport.offsetTop tells us by how much.
+//   We translate3d #app by exactly that amount to visually cancel the shift.
+//   translate3d keeps the element on the GPU compositor — no reflow/repaint.
+//
+// Layer 3 — CLEANUP (focusout):
+//   iOS 17/18 regression: offsetTop sometimes doesn't fully reset after the
+//   keyboard closes. We force-clear the transform 400 ms after blur.
+
+const appEl = document.getElementById('app');
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+let vpFramePending = false;
 function lockViewport() {
-  const app = document.getElementById('app');
-  if (!app) return;
-  if (window.visualViewport) {
+  if (vpFramePending) return;
+  vpFramePending = true;
+  requestAnimationFrame(() => {
+    vpFramePending = false;
+    if (!appEl) return;
     const vv = window.visualViewport;
-    app.style.height = vv.height + 'px';
-    app.style.transform = `translateY(${vv.offsetTop}px)`;
-    document.documentElement.style.setProperty('--real-vh', (vv.height * 0.01) + 'px');
-  } else {
-    app.style.height = window.innerHeight + 'px';
-  }
+    if (vv) {
+      appEl.style.height = `${vv.height}px`;
+      // Only apply transform when there's an actual offset — avoids creating a
+      // stacking-context when it's not needed.
+      appEl.style.transform = vv.offsetTop
+        ? `translate3d(0,${vv.offsetTop}px,0)`
+        : '';
+      document.documentElement.style.setProperty('--real-vh', `${vv.height * 0.01}px`);
+    } else {
+      appEl.style.height = `${window.innerHeight}px`;
+    }
+  });
 }
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', lockViewport);
@@ -556,4 +583,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('lesson-back-btn').addEventListener('click', returnHome);
   $('lesson-next-btn').addEventListener('click', nextLessonCard);
+
+  // ── iOS keyboard scroll prevention (Layer 1 + Layer 3) ─────────────────
+  if (isIOS) {
+    // Layer 1: on touchstart move the input way off-screen so Safari calculates
+    // "needs 0 scroll to reveal this element", then restore before paint.
+    $('answer-input').addEventListener('touchstart', () => {
+      const el = $('answer-input');
+      el.style.transform = 'translateY(-8000px)';
+      requestAnimationFrame(() => { el.style.transform = ''; });
+    }, { passive: true });
+
+    // Layer 3: iOS 17/18 regression — offsetTop doesn't always reset to 0
+    // after the keyboard closes. Force-clear the app transform after blur.
+    document.addEventListener('focusout', () => {
+      setTimeout(() => {
+        if (appEl) appEl.style.transform = '';
+        if (window.visualViewport) {
+          document.documentElement.style.setProperty(
+            '--real-vh', `${window.visualViewport.height * 0.01}px`
+          );
+        }
+      }, 400);
+    });
+  }
 });

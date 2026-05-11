@@ -50,6 +50,8 @@ body {
   top: 0; left: 0; right: 0;
   height: calc(var(--real-vh, 1vh) * 100);
   overflow: hidden;
+  /* Own compositor layer — translate3d updates don't trigger reflow */
+  will-change: transform;
 }
 
 /* ── Screens ─────────────────────────────────────────────────────────────── */
