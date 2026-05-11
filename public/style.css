@@ -282,9 +282,6 @@ html, body {
 .input-row input:focus      { border-color: var(--kanji); }
 .input-row input:disabled   { opacity: 0.55; }
 
-/* Reading input: slightly larger for Japanese characters */
-#reading-input { font-size: 1.1rem; }
-
 .submit-btn {
   background: var(--kanji);
   color: white;
