@@ -56,17 +56,19 @@
         <!-- Fixed: input stays put even when keyboard opens -->
         <section class="quiz-section" id="quiz-section">
           <div class="section-label" id="section-label">Meaning</div>
-          <div class="input-row">
-            <input
-              id="answer-input"
-              type="text"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="none"
-              spellcheck="false"
-            />
-            <button class="submit-btn" id="answer-submit">→</button>
-          </div>
+          <form id="answer-form" onsubmit="return false;">
+            <div class="input-row">
+              <input
+                id="answer-input"
+                type="text"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+              <button type="submit" class="submit-btn" id="answer-submit">→</button>
+            </div>
+          </form>
           <div class="result-row" id="answer-result"></div>
           <button class="give-up-btn hidden" id="answer-giveup">Show answer</button>
         </section>

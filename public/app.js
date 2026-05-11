@@ -1,19 +1,30 @@
 'use strict';
 
-// ── Viewport height fix (iPhone keyboard pushes layout) ───────────────────────
-// We track the visual viewport height and update a CSS variable.
-// The entire #app is sized to this variable, so the keyboard never
-// pushes the header or character off screen.
-function updateVh() {
-  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  document.documentElement.style.setProperty('--real-vh', (h * 0.01) + 'px');
+// ── Viewport lock — prevents iOS keyboard from shifting the layout ────────────
+// iOS Safari (even in standalone PWA mode) scrolls the layout viewport
+// when an input is focused, making fixed elements appear to jump.
+// Fix: on every visualViewport scroll/resize, we:
+//   1. Resize #app to match the visual viewport height (shrinks when keyboard opens)
+//   2. translateY by offsetTop to cancel any scroll iOS applied
+// This keeps the app visually anchored to the top of the screen at all times.
+function lockViewport() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    app.style.height = vv.height + 'px';
+    app.style.transform = `translateY(${vv.offsetTop}px)`;
+    document.documentElement.style.setProperty('--real-vh', (vv.height * 0.01) + 'px');
+  } else {
+    app.style.height = window.innerHeight + 'px';
+  }
 }
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', updateVh);
-  window.visualViewport.addEventListener('scroll', updateVh);
+  window.visualViewport.addEventListener('resize', lockViewport);
+  window.visualViewport.addEventListener('scroll', lockViewport);
 }
-window.addEventListener('resize', updateVh);
-updateVh();
+window.addEventListener('resize', lockViewport);
+lockViewport();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -59,7 +70,10 @@ function bindWanakana() {
   if (!window.wanakana) return;
   const el = $('answer-input');
   try { wanakana.unbind(el); } catch (_) {}
-  wanakana.bind(el, { IMEMode: true });
+  // No IMEMode — this enables live romaji→hiragana conversion as you type.
+  // IMEMode:true suppresses conversion (lets the IME do it), which breaks
+  // romaji input on an English keyboard, which is the common case on iPhone.
+  wanakana.bind(el);
 }
 
 function unbindWanakana() {
@@ -526,18 +540,14 @@ document.addEventListener('DOMContentLoaded', () => {
   $('done-btn').addEventListener('click', returnHome);
 
   $('review-back-btn').addEventListener('click', returnHome);
-  $('answer-submit').addEventListener('click', submitAnswer);
   $('answer-giveup').addEventListener('click', giveUp);
   $('next-btn').addEventListener('click', nextReviewCard);
-  $('answer-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
-  });
 
-  // Belt-and-suspenders: if iOS somehow still nudges the window on focus,
-  // snap it back immediately. With position:fixed on html+body this should
-  // never fire, but it costs nothing to have as a safety net.
-  $('answer-input').addEventListener('focus', () => {
-    requestAnimationFrame(() => { window.scrollTo(0, 0); });
+  // Use form submit so the iOS keyboard's Return/Go key reliably triggers.
+  // The button inside the form is type="submit", so tapping it also fires this.
+  $('answer-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitAnswer();
   });
 
   $('meaning-reveal-btn').addEventListener('click', () => toggleReveal('meaning'));
