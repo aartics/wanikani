@@ -13,27 +13,37 @@
   --text:        #eeeef8;
   --muted:       #7777aa;
   --radius:      14px;
-  --header-h:    60px;   /* session header height — updated via JS if needed */
   --safe-top:    env(safe-area-inset-top,    0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-html, body {
-  height: 100%;
-  /* Prevent body from scrolling — all scrolling happens inside #review-body */
+/*
+ * position:fixed on html+body is the only reliable way to stop iOS Safari
+ * from scrolling the page when an input is focused (keyboard appears).
+ * Nothing outside #app will ever scroll — all scrolling lives in #item-info.
+ */
+html {
+  position: fixed;
   overflow: hidden;
-  overscroll-behavior: none;
+  width: 100%;
+  height: 100%;
+}
+body {
+  position: fixed;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 /*
- * #app is fixed to the visual viewport.
- * JS updates --real-vh whenever visualViewport.resize fires
- * (covers the iPhone keyboard-appears case).
+ * #app fills the visual viewport. JS keeps --real-vh in sync whenever
+ * visualViewport.resize fires so the layout reflows correctly.
  */
 #app {
   position: fixed;
@@ -48,7 +58,7 @@ html, body {
   inset: 0;
   display: none;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden;   /* no screen ever scrolls as a whole */
 }
 .screen.active { display: flex; }
 
@@ -97,7 +107,6 @@ html, body {
 }
 .icon-btn:active { color: var(--text); }
 
-/* Single reviews count card */
 .review-count-card {
   width: 100%;
   background: var(--surface);
@@ -141,7 +150,7 @@ html, body {
   cursor: pointer;
   transition: opacity 0.12s;
 }
-.btn-primary:active  { opacity: 0.75; }
+.btn-primary:active   { opacity: 0.75; }
 .btn-primary:disabled { opacity: 0.4; cursor: default; }
 
 .btn-secondary {
@@ -156,7 +165,7 @@ html, body {
   cursor: pointer;
   transition: opacity 0.12s;
 }
-.btn-secondary:active  { opacity: 0.75; }
+.btn-secondary:active   { opacity: 0.75; }
 .btn-secondary:disabled { opacity: 0.4; cursor: default; }
 
 .home-hint {
@@ -166,18 +175,14 @@ html, body {
   min-height: 1.2em;
 }
 
-/* ── Session header (fixed height, never moves) ──────────────────────────── */
+/* ── Session header — rigid, never moves ─────────────────────────────────── */
 .session-header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  height: var(--header-h);
-  padding: 0 16px;
-  padding-top: var(--safe-top);
+  padding: calc(var(--safe-top) + 10px) 16px 10px;
   background: var(--surface);
-  /* keep header height consistent even with safe-area */
-  box-sizing: content-box;
 }
 
 .progress-wrap {
@@ -219,12 +224,12 @@ html, body {
 .type-badge.vocabulary,
 .type-badge.kana_vocabulary { background: var(--vocab); }
 
-/* ── Character display (never scrolls — sits between header and body) ────── */
+/* ── Character display — rigid, never moves ──────────────────────────────── */
 .char-display {
   flex-shrink: 0;
-  font-size: clamp(4rem, 16vw, 6.5rem);
+  font-size: clamp(3.8rem, 15vw, 6rem);
   text-align: center;
-  padding: 14px 16px 10px;
+  padding: 12px 16px 8px;
   line-height: 1.2;
 }
 .char-display.radical         { color: var(--radical); }
@@ -232,24 +237,13 @@ html, body {
 .char-display.vocabulary,
 .char-display.kana_vocabulary { color: var(--vocab); }
 
-/* ── Review body (scrollable; fits remaining space) ──────────────────────── */
-#review-body, #lesson-body {
-  flex: 1;
-  min-height: 0;           /* critical: lets flex child shrink + scroll */
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 0 16px calc(var(--safe-bottom) + 20px);
-}
-
-/* ── Quiz section ────────────────────────────────────────────────────────── */
+/* ── Quiz section — rigid, never moves, input does NOT scroll into view ──── */
 .quiz-section {
   flex-shrink: 0;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 14px 14px 12px;
+  margin: 0 14px;
   border: 2px solid transparent;
   transition: border-color 0.18s;
 }
@@ -273,10 +267,12 @@ html, body {
   background: var(--bg);
   border: 2px solid var(--surface2);
   border-radius: 10px;
-  padding: 13px 14px;
+  padding: 12px 13px;
   color: var(--text);
   font-size: 1.05rem;
   outline: none;
+  /* prevent iOS from enlarging the font and triggering a zoom/scroll */
+  font-size: max(16px, 1rem);
   transition: border-color 0.15s;
 }
 .input-row input:focus    { border-color: var(--kanji); }
@@ -287,7 +283,7 @@ html, body {
   color: white;
   border: none;
   border-radius: 10px;
-  padding: 13px 18px;
+  padding: 12px 16px;
   font-size: 1.1rem;
   cursor: pointer;
   flex-shrink: 0;
@@ -297,71 +293,90 @@ html, body {
 .submit-btn:disabled { opacity: 0.35; cursor: default; }
 
 .result-row {
-  min-height: 22px;
+  min-height: 20px;
   margin-top: 8px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 .result-row.correct   { color: var(--correct); }
 .result-row.incorrect { color: var(--incorrect); }
 
 .give-up-btn {
-  margin-top: 8px;
+  margin-top: 6px;
   background: none;
   border: none;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
 }
 .give-up-btn:active { color: var(--text); }
 
-/* ── Item info panel ─────────────────────────────────────────────────────── */
+/* ── Info panel — THE ONLY THING THAT SCROLLS ────────────────────────────── */
 .item-info {
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;          /* critical: lets flex child honour overflow */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  margin: 10px 14px 0;
+  padding: 4px 14px 8px;
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
 .info-row {
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   color: var(--muted);
   padding: 4px 0;
   line-height: 1.5;
 }
-.info-row strong { color: var(--text); margin-right: 6px; }
+.info-row strong { color: var(--text); margin-right: 5px; }
 
-/* Reveal toggles */
 .reveal-btn {
   background: none;
   border: none;
   border-top: 1px solid var(--surface2);
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   cursor: pointer;
-  padding: 10px 0 6px;
+  padding: 9px 0 5px;
   text-align: left;
-  transition: color 0.12s;
   width: 100%;
+  transition: color 0.12s;
 }
-.reveal-btn:first-child { border-top: none; }
-.reveal-btn:active { color: var(--text); }
-.reveal-btn.open { color: var(--text); }
+.reveal-btn:first-child { border-top: none; padding-top: 6px; }
+.reveal-btn:active, .reveal-btn.open { color: var(--text); }
 
-.reveal-content {
-  padding-bottom: 6px;
+.reveal-content { padding-bottom: 4px; }
+
+/* Lesson info panel reuses .item-info scroll styles */
+.lesson-info-panel {
+  gap: 14px;
+  padding: 14px !important;
+}
+.lesson-row { display: flex; flex-direction: column; gap: 4px; }
+.lesson-key {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.lesson-row span:last-child {
+  font-size: 0.93rem;
+  color: var(--text);
+  line-height: 1.5;
 }
 
-/* ── Next button ─────────────────────────────────────────────────────────── */
+/* ── Next button — rigid, anchored to bottom ─────────────────────────────── */
 .btn-next {
   flex-shrink: 0;
-  width: 100%;
-  padding: 18px;
+  width: calc(100% - 28px);
+  margin: 8px 14px calc(var(--safe-bottom) + 10px);
+  padding: 16px;
   background: var(--correct);
   color: white;
   border: none;
@@ -373,30 +388,6 @@ html, body {
 }
 .btn-next:active { opacity: 0.75; }
 
-/* ── Lessons ─────────────────────────────────────────────────────────────── */
-.lesson-info {
-  flex-shrink: 0;
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 18px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.lesson-row { display: flex; flex-direction: column; gap: 4px; }
-.lesson-key {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--muted);
-}
-.lesson-row span:last-child {
-  font-size: 0.95rem;
-  color: var(--text);
-  line-height: 1.5;
-}
-
 /* ── Complete screen ─────────────────────────────────────────────────────── */
 #complete-screen { justify-content: center; align-items: center; }
 .complete-wrap {
@@ -406,6 +397,8 @@ html, body {
   gap: 16px;
   padding: 40px 24px;
   text-align: center;
+  width: 100%;
+  max-width: 380px;
 }
 .complete-emoji { font-size: 4rem; color: var(--correct); font-weight: 700; }
 .complete-wrap h2 { font-size: 1.8rem; font-weight: 700; }
@@ -417,7 +410,6 @@ html, body {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .fade-in { animation: fadeIn 0.2s ease; }
 
-/* Kill all motion if the user has asked for it */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

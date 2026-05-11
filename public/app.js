@@ -177,9 +177,9 @@ function renderReviewCard() {
   collapseReveal('reading');
   collapseReveal('explanation');
 
-  // Scroll review body back to top
-  const body = $('review-body');
-  if (body) body.scrollTop = 0;
+  // Reset the info panel scroll so old content doesn't bleed through
+  const info = $('item-info');
+  if (info) info.scrollTop = 0;
 
   setTimeout(() => $('answer-input').focus(), 80);
 }
@@ -445,7 +445,7 @@ function renderLessonCard() {
     $('lesson-reading-mnemonic-row').classList.remove('hidden');
   } else { $('lesson-reading-mnemonic-row').classList.add('hidden'); }
 
-  $('lesson-body').scrollTop = 0;
+  $('lesson-body').scrollTop = 0;  // reset scroll inside lesson info panel
 }
 
 async function nextLessonCard() {
@@ -531,6 +531,13 @@ document.addEventListener('DOMContentLoaded', () => {
   $('next-btn').addEventListener('click', nextReviewCard);
   $('answer-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
+  });
+
+  // Belt-and-suspenders: if iOS somehow still nudges the window on focus,
+  // snap it back immediately. With position:fixed on html+body this should
+  // never fire, but it costs nothing to have as a safety net.
+  $('answer-input').addEventListener('focus', () => {
+    requestAnimationFrame(() => { window.scrollTo(0, 0); });
   });
 
   $('meaning-reveal-btn').addEventListener('click', () => toggleReveal('meaning'));

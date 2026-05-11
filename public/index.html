@@ -50,57 +50,50 @@
           <span class="type-badge" id="type-badge"></span>
         </header>
 
-        <!-- char is outside the scroll area so it never moves -->
+        <!-- Fixed: never moves regardless of keyboard -->
         <div class="char-display" id="char-display"></div>
 
-        <!-- quiz + info scroll together if needed, but char stays above -->
-        <div id="review-body">
+        <!-- Fixed: input stays put even when keyboard opens -->
+        <section class="quiz-section" id="quiz-section">
+          <div class="section-label" id="section-label">Meaning</div>
+          <div class="input-row">
+            <input
+              id="answer-input"
+              type="text"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+            <button class="submit-btn" id="answer-submit">→</button>
+          </div>
+          <div class="result-row" id="answer-result"></div>
+          <button class="give-up-btn hidden" id="answer-giveup">Show answer</button>
+        </section>
 
-          <section class="quiz-section" id="quiz-section">
-            <div class="section-label" id="section-label">Meaning</div>
-            <div class="input-row">
-              <input
-                id="answer-input"
-                type="text"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="none"
-                spellcheck="false"
-              />
-              <button class="submit-btn" id="answer-submit">→</button>
-            </div>
-            <div class="result-row" id="answer-result"></div>
-            <button class="give-up-btn hidden" id="answer-giveup">Show answer</button>
-          </section>
-
-          <!-- Info panel — revealed after answering -->
-          <div class="item-info hidden" id="item-info">
-
-            <!-- Meaning: auto-open on meaning cards, hidden on reading cards -->
-            <button class="reveal-btn hidden" id="meaning-reveal-btn">Show meaning ▾</button>
-            <div class="reveal-content hidden" id="meaning-reveal">
-              <div class="info-row" id="info-meanings"></div>
-            </div>
-
-            <!-- Reading: auto-open on reading cards, hidden on meaning cards -->
-            <button class="reveal-btn hidden" id="reading-reveal-btn">Show reading ▾</button>
-            <div class="reveal-content hidden" id="reading-reveal">
-              <div class="info-row" id="info-readings"></div>
-              <div class="info-row" id="info-pos"></div>
-            </div>
-
-            <!-- Explanation: hidden until tapped -->
-            <button class="reveal-btn" id="explanation-reveal-btn">Show explanation ▾</button>
-            <div class="reveal-content hidden" id="explanation-reveal">
-              <div class="info-row" id="info-meaning-mnemonic"></div>
-              <div class="info-row" id="info-reading-mnemonic"></div>
-            </div>
-
+        <!-- Only this region scrolls — everything above is locked -->
+        <div class="item-info hidden" id="item-info">
+          <button class="reveal-btn hidden" id="meaning-reveal-btn">Show meaning ▾</button>
+          <div class="reveal-content hidden" id="meaning-reveal">
+            <div class="info-row" id="info-meanings"></div>
           </div>
 
-          <button class="btn-next hidden" id="next-btn">Next →</button>
+          <button class="reveal-btn hidden" id="reading-reveal-btn">Show reading ▾</button>
+          <div class="reveal-content hidden" id="reading-reveal">
+            <div class="info-row" id="info-readings"></div>
+            <div class="info-row" id="info-pos"></div>
+          </div>
 
-        </div><!-- #review-body -->
+          <button class="reveal-btn hidden" id="explanation-reveal-btn">Show explanation ▾</button>
+          <div class="reveal-content hidden" id="explanation-reveal">
+            <div class="info-row" id="info-meaning-mnemonic"></div>
+            <div class="info-row" id="info-reading-mnemonic"></div>
+          </div>
+        </div>
+
+        <!-- Fixed: always anchored to bottom -->
+        <button class="btn-next hidden" id="next-btn">Next →</button>
+
       </div>
 
       <!-- ── Lessons ────────────────────────────────────────────────────── -->
@@ -117,27 +110,27 @@
 
         <div class="char-display" id="lesson-char-display"></div>
 
-        <div id="lesson-body">
-          <div class="lesson-info">
-            <div class="lesson-row">
-              <span class="lesson-key">Meanings</span>
-              <span id="lesson-meanings"></span>
-            </div>
-            <div class="lesson-row" id="lesson-reading-row">
-              <span class="lesson-key">Readings</span>
-              <span id="lesson-readings"></span>
-            </div>
-            <div class="lesson-row" id="lesson-mnemonic-row">
-              <span class="lesson-key">Meaning hint</span>
-              <span id="lesson-mnemonic"></span>
-            </div>
-            <div class="lesson-row" id="lesson-reading-mnemonic-row">
-              <span class="lesson-key">Reading hint</span>
-              <span id="lesson-reading-mnemonic"></span>
-            </div>
+        <!-- Scrollable lesson info -->
+        <div class="item-info lesson-info-panel" id="lesson-body">
+          <div class="lesson-row">
+            <span class="lesson-key">Meanings</span>
+            <span id="lesson-meanings"></span>
           </div>
-          <button class="btn-next" id="lesson-next-btn">Got it →</button>
+          <div class="lesson-row" id="lesson-reading-row">
+            <span class="lesson-key">Readings</span>
+            <span id="lesson-readings"></span>
+          </div>
+          <div class="lesson-row" id="lesson-mnemonic-row">
+            <span class="lesson-key">Meaning hint</span>
+            <span id="lesson-mnemonic"></span>
+          </div>
+          <div class="lesson-row" id="lesson-reading-mnemonic-row">
+            <span class="lesson-key">Reading hint</span>
+            <span id="lesson-reading-mnemonic"></span>
+          </div>
         </div>
+
+        <button class="btn-next" id="lesson-next-btn">Got it →</button>
 
       </div>
 
