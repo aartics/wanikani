@@ -90,22 +90,26 @@ function needsReading(subject) {
   return subject.object !== 'radical' && subject.object !== 'kana_vocabulary';
 }
 
-// ── WanaKana — bind/unbind per card ──────────────────────────────────────────
-// We call unbind before every bind to avoid double-binding.
-// Do NOT use wanakana.isBound() — it is not reliable across versions.
-function bindWanakana() {
-  if (!window.wanakana) return;
-  const el = $('answer-input');
-  try { wanakana.unbind(el); } catch (_) {}
-  // No IMEMode — this enables live romaji→hiragana conversion as you type.
-  // IMEMode:true suppresses conversion (lets the IME do it), which breaks
-  // romaji input on an English keyboard, which is the common case on iPhone.
-  wanakana.bind(el);
-}
+// ── WanaKana — manual input handler ──────────────────────────────────────────
+// wanakana.bind() fights iOS's text composition layer (IME), causing dropped
+// characters and spell-check interference on English keyboards. Instead we
+// use a plain input event + wanakana.toHiragana() as a pure function.
+// Setting el.value from an input handler does NOT re-fire the input event
+// (browsers only fire it on user input), so there is no infinite loop.
+// IMEMode:true keeps 'n' unconverted until the next character resolves it.
+let currentPromptIsReading = false;
 
-function unbindWanakana() {
-  if (!window.wanakana) return;
-  try { wanakana.unbind($('answer-input')); } catch (_) {}
+function setReadingMode(isReading) {
+  currentPromptIsReading = isReading;
+  const el = $('answer-input');
+  if (isReading) {
+    el.setAttribute('lang', 'ja');
+    el.setAttribute('autocomplete', 'off');
+    el.setAttribute('autocorrect', 'off');
+    el.setAttribute('spellcheck', 'false');
+  } else {
+    el.removeAttribute('lang');
+  }
 }
 
 // ── Answer checking ───────────────────────────────────────────────────────────
@@ -191,11 +195,7 @@ function renderReviewCard() {
   $('answer-input').placeholder = isReading ? 'Type reading…' : 'Type meaning…';
 
   // WanaKana: only active on reading cards
-  if (isReading) {
-    bindWanakana();
-  } else {
-    unbindWanakana();
-  }
+  setReadingMode(isReading);
 
   // Reset card
   wrongThisCard = 0;
@@ -576,7 +576,7 @@ async function loadSummary() {
 }
 
 function returnHome() {
-  unbindWanakana();
+  setReadingMode(false);
   loadSummary();
   $('start-reviews-btn').disabled = false; $('start-reviews-btn').textContent = 'Start Reviews';
   $('start-lessons-btn').disabled = false; $('start-lessons-btn').textContent = 'Start Lessons';
@@ -606,6 +606,21 @@ document.addEventListener('DOMContentLoaded', () => {
   $('answer-form').addEventListener('submit', (e) => {
     e.preventDefault();
     submitAnswer();
+  });
+
+  // WanaKana romaji→hiragana via pure function on every keystroke.
+  // Avoids wanakana.bind() which conflicts with iOS IME/spell-check.
+  $('answer-input').addEventListener('input', function () {
+    if (!currentPromptIsReading || !window.wanakana) return;
+    const val = this.value;
+    // IMEMode:true keeps 'n' as-is until the next char resolves it
+    const converted = wanakana.toHiragana(val, { IMEMode: true });
+    if (converted === val) return;
+    const pos = this.selectionStart;
+    this.value = converted;
+    // Restore cursor: offset by the length difference
+    const newPos = Math.max(0, pos + converted.length - val.length);
+    try { this.setSelectionRange(newPos, newPos); } catch (_) {}
   });
 
   $('meaning-reveal-btn').addEventListener('click', () => toggleReveal('meaning'));
