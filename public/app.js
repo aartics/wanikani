@@ -173,6 +173,7 @@ function renderReviewCard() {
   $('next-btn').classList.add('hidden');
 
   // Collapse any open reveals
+  collapseReveal('meaning');
   collapseReveal('reading');
   collapseReveal('explanation');
 
@@ -213,14 +214,14 @@ function revealInfo() {
   const { subject, promptType } = reviewQueue[reviewIndex];
   const isReading = promptType === 'reading';
 
-  // Meanings row (always visible)
+  // Populate meaning content
   const meanings = subject.data.meanings
     .filter((m) => m.accepted_answer)
     .map((m) => m.meaning)
     .join(', ');
   $('info-meanings').innerHTML = `<strong>Meanings:</strong> ${meanings}`;
 
-  // Readings (inside reveal)
+  // Populate reading content
   if (needsReading(subject) && subject.data.readings?.length) {
     const readings = subject.data.readings
       .filter((r) => r.accepted_answer)
@@ -230,35 +231,44 @@ function revealInfo() {
 
     if (subject.object === 'kanji') {
       const primary = subject.data.readings.find((r) => r.primary);
-      $('info-pos').innerHTML = primary
-        ? `<strong>Type:</strong> ${primary.type}`
-        : '';
+      $('info-pos').innerHTML = primary ? `<strong>Type:</strong> ${primary.type}` : '';
     } else {
       $('info-pos').textContent = '';
     }
-    $('reading-reveal-btn').classList.remove('hidden');
-  } else {
-    $('reading-reveal-btn').classList.add('hidden');
   }
 
-  // Mnemonics (inside explanation reveal)
+  // Populate mnemonics
   const mm = stripTags(subject.data.meaning_mnemonic || '');
   const rm = needsReading(subject) ? stripTags(subject.data.reading_mnemonic || '') : '';
   $('info-meaning-mnemonic').innerHTML = mm ? `<strong>Meaning:</strong> ${mm}` : '';
   $('info-reading-mnemonic').innerHTML = rm ? `<strong>Reading:</strong> ${rm}` : '';
-
   if (mm || rm) {
     $('explanation-reveal-btn').classList.remove('hidden');
   } else {
     $('explanation-reveal-btn').classList.add('hidden');
   }
 
-  // If this is a reading card, auto-open the reading reveal so they
-  // can verify what they just answered without an extra tap
-  if (isReading && needsReading(subject)) {
+  // Auto-open what they just answered; hide the other behind a button.
+  // Meaning card → open meaning, reading stays hidden.
+  // Reading card → open reading, meaning stays hidden.
+  if (isReading) {
+    // Show what they answered (reading)
+    $('reading-reveal-btn').classList.remove('hidden');
     $('reading-reveal').classList.remove('hidden');
     $('reading-reveal-btn').classList.add('open');
     $('reading-reveal-btn').textContent = 'Hide reading ▴';
+    // Meaning hidden behind toggle (only if subject has reading — meaning cards for radicals are fine)
+    $('meaning-reveal-btn').classList.remove('hidden');
+  } else {
+    // Show what they answered (meaning)
+    $('meaning-reveal-btn').classList.remove('hidden');
+    $('meaning-reveal').classList.remove('hidden');
+    $('meaning-reveal-btn').classList.add('open');
+    $('meaning-reveal-btn').textContent = 'Hide meaning ▴';
+    // Reading hidden behind toggle (only show button if subject has readings)
+    if (needsReading(subject)) {
+      $('reading-reveal-btn').classList.remove('hidden');
+    }
   }
 
   const info = $('item-info');
@@ -523,6 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
   });
 
+  $('meaning-reveal-btn').addEventListener('click', () => toggleReveal('meaning'));
   $('reading-reveal-btn').addEventListener('click', () => toggleReveal('reading'));
   $('explanation-reveal-btn').addEventListener('click', () => toggleReveal('explanation'));
 

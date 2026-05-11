@@ -76,11 +76,14 @@
           <!-- Info panel — revealed after answering -->
           <div class="item-info hidden" id="item-info">
 
-            <!-- Meanings: always visible -->
-            <div class="info-row" id="info-meanings"></div>
+            <!-- Meaning: auto-open on meaning cards, hidden on reading cards -->
+            <button class="reveal-btn hidden" id="meaning-reveal-btn">Show meaning ▾</button>
+            <div class="reveal-content hidden" id="meaning-reveal">
+              <div class="info-row" id="info-meanings"></div>
+            </div>
 
-            <!-- Reading: hidden until tapped -->
-            <button class="reveal-btn" id="reading-reveal-btn">Show reading ▾</button>
+            <!-- Reading: auto-open on reading cards, hidden on meaning cards -->
+            <button class="reveal-btn hidden" id="reading-reveal-btn">Show reading ▾</button>
             <div class="reveal-content hidden" id="reading-reveal">
               <div class="info-row" id="info-readings"></div>
               <div class="info-row" id="info-pos"></div>
