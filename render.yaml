@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: wanikani-pwa
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: WK_TOKEN
+        sync: false
+      - key: NODE_ENV
+        value: production
