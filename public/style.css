@@ -328,7 +328,7 @@ body {
   -webkit-overflow-scrolling: touch;
   background: var(--surface);
   border-radius: var(--radius);
-  margin: 10px 14px 0;
+  margin: 8px 14px calc(var(--safe-bottom) + 10px);
   padding: 4px 14px 8px;
   display: flex;
   flex-direction: column;
@@ -378,11 +378,11 @@ body {
   line-height: 1.5;
 }
 
-/* ── Next button — rigid, anchored to bottom ─────────────────────────────── */
+/* ── Next button — rigid, sits right below the input section ─────────────── */
 .btn-next {
   flex-shrink: 0;
   width: calc(100% - 28px);
-  margin: 8px 14px calc(var(--safe-bottom) + 10px);
+  margin: 8px 14px 0;
   padding: 16px;
   background: var(--correct);
   color: white;
