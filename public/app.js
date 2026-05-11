@@ -323,7 +323,20 @@ function revealInfo() {
   setTimeout(() => nextBtn.classList.remove('fade-in'), 250);
 }
 
+// ── Toast error display ───────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const t = $('error-toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 4000);
+}
+
 // ── Submit review to WaniKani when both parts done ────────────────────────────
+let reviewsSubmitted = 0;
+let reviewsFailed = 0;
+
 async function maybeSubmitReview(assignmentId, subject) {
   const p = getProgress(assignmentId);
   const bothDone = needsReading(subject) ? (p.meaningDone && p.readingDone) : p.meaningDone;
@@ -337,8 +350,11 @@ async function maybeSubmitReview(assignmentId, subject) {
         incorrect_reading_answers: p.wrongReading,
       }),
     });
+    reviewsSubmitted++;
   } catch (e) {
-    console.warn('Review submit failed:', e.message);
+    reviewsFailed++;
+    console.error('Review submit failed:', e.message);
+    showToast(`⚠ Review failed to save: ${e.message}`);
   }
 }
 
@@ -434,6 +450,7 @@ async function startReviews() {
     }
     reviewQueue = buildQueue(data.items);
     reviewIndex = 0; sessionCards = 0; sessionCorrect = 0;
+    reviewsSubmitted = 0; reviewsFailed = 0;
     progress.clear();
     showScreen('review-screen');
     renderReviewCard();
@@ -526,9 +543,23 @@ function showComplete(mode) {
     const pct = sessionCards ? Math.round((sessionCorrect / sessionCards) * 100) : 0;
     $('complete-emoji').textContent = pct === 100 ? '🎉' : pct >= 80 ? '✓' : '頑';
     $('complete-stats').textContent = `${sessionCorrect} / ${sessionCards} correct (${pct}%)`;
+
+    // Show WaniKani submission result so user knows what actually synced
+    const statusEl = $('submit-status');
+    if (reviewsFailed > 0) {
+      statusEl.textContent = `⚠ ${reviewsSubmitted} submitted to WaniKani, ${reviewsFailed} failed — check your connection`;
+      statusEl.style.color = 'var(--incorrect)';
+    } else if (reviewsSubmitted > 0) {
+      statusEl.textContent = `✓ ${reviewsSubmitted} review${reviewsSubmitted !== 1 ? 's' : ''} saved to WaniKani`;
+      statusEl.style.color = 'var(--correct)';
+    } else {
+      statusEl.textContent = 'No reviews were submitted (items need both halves done)';
+      statusEl.style.color = 'var(--muted)';
+    }
   } else {
     $('complete-emoji').textContent = '📖';
     $('complete-stats').textContent = `${lessonQueue.length} lesson${lessonQueue.length !== 1 ? 's' : ''} completed`;
+    $('submit-status').textContent = '';
   }
   showScreen('complete-screen');
 }

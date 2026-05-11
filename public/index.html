@@ -57,17 +57,15 @@
         <section class="quiz-section" id="quiz-section">
           <div class="section-label" id="section-label">Meaning</div>
           <form id="answer-form" onsubmit="return false;">
-            <div class="input-row">
-              <input
-                id="answer-input"
-                type="text"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="none"
-                spellcheck="false"
-              />
-              <button type="submit" class="submit-btn" id="answer-submit">→</button>
-            </div>
+            <input
+              id="answer-input"
+              type="text"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+            <button type="submit" class="submit-btn-wide" id="answer-submit">Submit →</button>
           </form>
           <div class="result-row" id="answer-result"></div>
           <button class="give-up-btn hidden" id="answer-giveup">Show answer</button>
@@ -142,9 +140,13 @@
           <div class="complete-emoji" id="complete-emoji">✓</div>
           <h2>Session Complete</h2>
           <p id="complete-stats"></p>
+          <p class="submit-status" id="submit-status"></p>
           <button class="btn-primary" id="done-btn">Back to Home</button>
         </div>
       </div>
+
+    <!-- Toast for submission errors — floats over any screen -->
+    <div id="error-toast" class="error-toast hidden"></div>
 
     </div><!-- #app -->
 

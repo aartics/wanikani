@@ -261,38 +261,43 @@ body {
   margin-bottom: 10px;
 }
 
-.input-row { display: flex; gap: 8px; }
+/* Answer form: input full-width, submit button full-width below */
+#answer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-.input-row input {
-  flex: 1;
-  min-width: 0;
+#answer-form input,
+#answer-input {
+  width: 100%;
   background: var(--bg);
   border: 2px solid var(--surface2);
   border-radius: 10px;
-  padding: 12px 13px;
+  padding: 13px 14px;
   color: var(--text);
-  font-size: 1.05rem;
-  outline: none;
-  /* prevent iOS from enlarging the font and triggering a zoom/scroll */
+  /* max(16px) stops iOS from zooming the viewport on focus */
   font-size: max(16px, 1rem);
+  outline: none;
   transition: border-color 0.15s;
 }
-.input-row input:focus    { border-color: var(--kanji); }
-.input-row input:disabled { opacity: 0.55; }
+#answer-input:focus    { border-color: var(--kanji); }
+#answer-input:disabled { opacity: 0.55; }
 
-.submit-btn {
+.submit-btn-wide {
+  width: 100%;
+  padding: 14px;
   background: var(--kanji);
   color: white;
   border: none;
   border-radius: 10px;
-  padding: 12px 16px;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
-  flex-shrink: 0;
   transition: opacity 0.12s;
 }
-.submit-btn:active:not(:disabled) { opacity: 0.75; }
-.submit-btn:disabled { opacity: 0.35; cursor: default; }
+.submit-btn-wide:active:not(:disabled) { opacity: 0.75; }
+.submit-btn-wide:disabled { opacity: 0.35; cursor: default; }
 
 .result-row {
   min-height: 20px;
@@ -405,6 +410,23 @@ body {
 .complete-emoji { font-size: 4rem; color: var(--correct); font-weight: 700; }
 .complete-wrap h2 { font-size: 1.8rem; font-weight: 700; }
 .complete-wrap p  { color: var(--muted); }
+.submit-status    { font-size: 0.82rem; min-height: 1.2em; }
+
+/* Floating error toast */
+.error-toast {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 80px);
+  left: 16px; right: 16px;
+  background: var(--incorrect);
+  color: white;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: center;
+  z-index: 999;
+  animation: fadeIn 0.2s ease;
+}
 
 /* ── Utility ─────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
